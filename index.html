@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Duty Dashboard (Idea Demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background:#f4f6f8; margin:0; padding:24px;
+    }
+    .card{
+      max-width:1100px; margin:auto; background:#fff;
+      border-radius:12px; padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+    h1{ font-size:22px; margin:0 0 6px 0; }
+    .muted{ color:#666; font-size:12px; margin-bottom:12px; }
+
+    .row{
+      display:grid;
+      grid-template-columns: 26px 1fr auto;
+      align-items:center;
+      padding:6px 6px;
+      border-radius:8px;
+      user-select:none;
+    }
+    .row:hover{ background:#f2f4f7; }
+    .row.clickable{ cursor:pointer; }
+
+    .indent-0{ padding-left:0px; }
+    .indent-1{ padding-left:18px; }
+    .indent-2{ padding-left:36px; }
+    .indent-3{ padding-left:54px; }
+    .indent-4{ padding-left:72px; }
+
+    .chev{
+      width:22px; height:22px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; color:#111;
+    }
+
+    .title{ font-weight:800; color:#111; }
+    .subtitle{ font-weight:600; color:#222; }
+
+    .metrics{
+      font-size:13px;
+      white-space:nowrap;
+      display:flex; gap:16px; color:#111;
+    }
+    .metrics b{ font-weight:800; }
+
+    .children{ margin:2px 0 6px 0; }
+    .hidden{ display:none; }
+
+    .pill{
+      font-size:12px; color:#444;
+      background:#eef2ff; border:1px solid #e0e7ff;
+      padding:2px 8px; border-radius:999px;
+      margin-left:8px;
+    }
+
+    .divider{
+      height:1px; background:#eee; margin:10px 0;
+    }
+
+    .empty{
+      color:#777; font-size:12px;
+      padding:4px 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Duty Dashboard (Idea Demo)</h1>
+    <div class="muted">
+      Pure HTML + JS. Staff and Months are collapsible groups. Jan–Dec always present. Totals auto-computed.
+    </div>
+    <div id="app"></div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────
+    // 1) Constants
+    // ─────────────────────────────────────────
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+    // ─────────────────────────────────────────
+    // 2) Mock data  (single source of truth)
+    // ─────────────────────────────────────────
+    const data = {
+      years: [
+        {
+          year: 2026,
+          staff: [
+            {
+              name: "Alex",
+              months: [
+                { name:"Jan", weekday:6, weekend:2, ph:0 },
+                { name:"Feb", weekday:6, weekend:2, ph:0 },
+                { name:"Mar", weekday:3, weekend:1, ph:0 },
+                { name:"Apr", weekday:2, weekend:1, ph:0 },
+                { name:"May", weekday:2, weekend:1, ph:1 },
+                { name:"Jun", weekday:1, weekend:1, ph:0 },
+              ]
+            },
+            {
+              name: "Alan",
+              months: [
+                { name:"Jan", weekday:7, weekend:1, ph:1 },
+                { name:"Feb", weekday:4, weekend:2, ph:0 },
+                { name:"Mar", weekday:3, weekend:1, ph:1 },
+                { name:"Apr", weekday:2, weekend:1, ph:0 },
+                { name:"May", weekday:1, weekend:1, ph:0 },
+              ]
+            },
+            {
+              name: "Mel",
+              months: [
+                { name:"Jan", weekday:6, weekend:2, ph:0 },
+                { name:"Feb", weekday:5, weekend:2, ph:2 },
+                { name:"Mar", weekday:4, weekend:2, ph:0 },
+                { name:"Apr", weekday:2, weekend:2, ph:1 },
+                { name:"May", weekday:2, weekend:1, ph:0 },
+                { name:"Jun", weekday:1, weekend:1, ph:1 },
+              ]
+            }
+          ]
+        },
+        {
+          year: 2025,
+          staff: [
+            {
+              name: "Alex",
+              months: [
+                { name:"Jan", weekday:5, weekend:2, ph:0 },
+                { name:"Feb", weekday:4, weekend:2, ph:0 },
+                { name:"Mar", weekday:3, weekend:1, ph:1 },
+                { name:"Apr", weekday:2, weekend:1, ph:0 },
+              ]
+            },
+            {
+              name: "Alan",
+              months: [
+                { name:"Jan", weekday:6, weekend:1, ph:1 },
+                { name:"Feb", weekday:4, weekend:2, ph:1 },
+                { name:"Mar", weekday:2, weekend:1, ph:0 },
+              ]
+            },
+            {
+              name: "Mel",
+              months: [
+                { name:"Jan", weekday:5, weekend:2, ph:0 },
+                { name:"Feb", weekday:4, weekend:1, ph:1 },
+                { name:"Apr", weekday:2, weekend:2, ph:0 },
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    // ─────────────────────────────────────────
+    // 3) Compute helpers
+    // ─────────────────────────────────────────
+    function zero() { return { weekday:0, weekend:0, ph:0 }; }
+
+    function add(a, b) {
+      return {
+        weekday: (a.weekday||0) + (b.weekday||0),
+        weekend: (a.weekend||0) + (b.weekend||0),
+        ph:      (a.ph||0)      + (b.ph||0)
+      };
+    }
+
+    // Fill all 12 months for a staff member (missing → zeros)
+    function fullMonths(staff) {
+      const map = new Map((staff.months||[]).map(m => [m.name, m]));
+      return MONTHS.map(name => {
+        const m = map.get(name);
+        return { name, weekday: m?.weekday??0, weekend: m?.weekend??0, ph: m?.ph??0 };
+      });
+    }
+
+    function staffTotal(staff) {
+      return fullMonths(staff).reduce((acc, m) => add(acc, m), zero());
+    }
+
+    function monthTotal(yearObj, monthName) {
+      return (yearObj.staff||[]).reduce((acc, s) => {
+        const m = fullMonths(s).find(x => x.name === monthName) || zero();
+        return add(acc, m);
+      }, zero());
+    }
+
+    function yearTotal(yearObj) {
+      return MONTHS.reduce((acc, name) => add(acc, monthTotal(yearObj, name)), zero());
+    }
+
+    // ─────────────────────────────────────────
+    // 4) Expand state  (nice demo defaults)
+    // ─────────────────────────────────────────
+    const open = new Set([
+      "year:2026",
+      "year:2026:staff",
+      "year:2026:staff:Mel",
+      "year:2026:months",          // ← Months group open by default
+      "year:2026:month:Jan",
+      "year:2026:month:Feb",
+      "year:2025",
+      "year:2025:months",
+    ]);
+
+    // ─────────────────────────────────────────
+    // 5) Render helpers
+    // ─────────────────────────────────────────
+    function metricsHTML(m) {
+      if (!m) return "";
+      return `<div class="metrics">
+        <span>Weekday: <b>${m.weekday??0}</b></span>
+        <span>Weekend: <b>${m.weekend??0}</b></span>
+        <span>PH: <b>${m.ph??0}</b></span>
+      </div>`;
+    }
+
+    function rowHTML({ id, indent, title, metrics, expandable, childrenHTML }) {
+      const expanded = open.has(id);
+      const icon = expanded ? "▼" : "▶";
+
+      return `
+        <div class="row ${expandable ? "clickable" : ""} indent-${indent}" data-id="${id}">
+          <div class="chev">${expandable ? icon : ""}</div>
+          <div class="${indent === 0 ? "title" : "subtitle"}">${title}</div>
+          ${metricsHTML(metrics)}
+        </div>
+        ${expandable
+          ? `<div class="children ${expanded ? "" : "hidden"}" data-children="${id}">
+               ${childrenHTML || ""}
+             </div>`
+          : ""}
+      `;
+    }
+
+    // ─────────────────────────────────────────
+    // 6) Build HTML per year
+    // ─────────────────────────────────────────
+    function buildYearHTML(y) {
+      const yid = `year:${y.year}`;
+
+      // ── Total Duties row ──────────────────
+      const totalRow = rowHTML({
+        id: `${yid}:total`,
+        indent: 1,
+        title: "Total Duties",
+        metrics: yearTotal(y),
+        expandable: false
+      });
+
+      // ── Staff group ───────────────────────
+      const staffChildrenHTML = (y.staff||[]).map(s => {
+        const sid = `${yid}:staff:${s.name}`;
+        const monthRows = fullMonths(s).map(m => rowHTML({
+          id: `${sid}:m:${m.name}`,
+          indent: 3,
+          title: m.name,
+          metrics: { weekday: m.weekday, weekend: m.weekend, ph: m.ph },
+          expandable: false
+        })).join("");
+
+        return rowHTML({
+          id: sid,
+          indent: 2,
+          title: s.name,
+          metrics: staffTotal(s),
+          expandable: true,
+          childrenHTML: monthRows
+        });
+      }).join("") || `<div class="empty indent-2">(no staff data)</div>`;
+
+      const staffGroupRow = rowHTML({
+        id: `${yid}:staff`,
+        indent: 1,
+        title: `Staff <span class="pill">${(y.staff||[]).length}</span>`,
+        metrics: null,
+        expandable: true,
+        childrenHTML: staffChildrenHTML
+      });
+
+      // ── Months group ──────────────────────  ← NEW WRAPPER
+      const monthChildrenHTML = MONTHS.map(name => {
+        const mid = `${yid}:month:${name}`;
+        const totals = monthTotal(y, name);
+
+        // Staff rows inside each month
+        const staffRowsHTML = (y.staff||[]).map(s => {
+          const m = fullMonths(s).find(x => x.name === name) || zero();
+          return rowHTML({
+            id: `${mid}:s:${s.name}`,
+            indent: 3,
+            title: s.name,
+            metrics: { weekday: m.weekday, weekend: m.weekend, ph: m.ph },
+            expandable: false
+          });
+        }).join("") || `<div class="empty indent-3">(no staff data)</div>`;
+
+        return rowHTML({
+          id: mid,
+          indent: 2,
+          title: name,
+          metrics: totals,
+          expandable: true,
+          childrenHTML: staffRowsHTML
+        });
+      }).join("");
+
+      const monthsGroupRow = rowHTML({
+        id: `${yid}:months`,
+        indent: 1,
+        title: `Months <span class="pill">12</span>`,
+        metrics: null,
+        expandable: true,
+        childrenHTML: monthChildrenHTML   // ← Jan–Dec live inside this group
+      });
+
+      // ── Year row (wraps everything) ───────
+      return rowHTML({
+        id: yid,
+        indent: 0,
+        title: String(y.year),
+        metrics: null,
+        expandable: true,
+        childrenHTML: totalRow + staffGroupRow + monthsGroupRow
+      });
+    }
+
+    // ─────────────────────────────────────────
+    // 7) Render + event delegation
+    // ─────────────────────────────────────────
+    function render() {
+      const app = document.getElementById("app");
+      app.innerHTML = data.years.map(buildYearHTML).join('<div class="divider"></div>');
+
+      app.onclick = e => {
+        const row = e.target.closest(".row");
+        if (!row) return;
+
+        const id = row.getAttribute("data-id");
+        if (!app.querySelector(`[data-children="${id}"]`)) return; // not expandable
+
+        open.has(id) ? open.delete(id) : open.add(id);
+        render();
+      };
+    }
+
+    render();
+  </script>
+</body>
+</html>
