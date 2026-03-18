@@ -9,7 +9,7 @@ const staffProfiles = {
       { date: "15 April 2026",  type: "wd" },
     ]
   },
-  Alan: {
+  Sarah: {
     rank: "Corporal",
     contingencyRole: "IC2",
     joinDate: "5 January 2023",
@@ -19,14 +19,14 @@ const staffProfiles = {
       { date: "28 April 2026",  type: "we" },
     ]
   },
-  Mel: {
+  Hafiz: {
     rank: "Sergeant",
-    contingencyRole: "2IC",
+    contingencyRole: "IC1",
     joinDate: "15 July 2021",
     upcomingDuties: [
       { date: "19 March 2026",  type: "wd" },
       { date: "29 March 2026",  type: "we" },
-      { date: "18 April 2026",  type: "ph" },
+      { date: "18 April 2026",  type: "we" },
     ]
   }
 };
